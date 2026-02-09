@@ -13,6 +13,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['Open Sans', 'sans-serif'],
+        display: ['Montserrat', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -57,6 +61,22 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // Adventure tourism custom colors
+        sky: {
+          light: "hsl(201 80% 50%)",
+          DEFAULT: "hsl(201 96% 32%)",
+          dark: "hsl(201 96% 25%)",
+        },
+        sunset: {
+          light: "hsl(24 95% 65%)",
+          DEFAULT: "hsl(24 95% 53%)",
+          dark: "hsl(350 80% 55%)",
+        },
+        mountain: {
+          green: "hsl(158 64% 32%)",
+          dark: "hsl(215 28% 17%)",
+          snow: "hsl(210 40% 98%)",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -65,25 +85,43 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        "fade-in-up": {
+          "0%": { opacity: "0", transform: "translateY(30px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "float": {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-10px)" },
+        },
+        "pulse-glow": {
+          "0%, 100%": { boxShadow: "0 0 20px hsl(24 95% 53% / 0.5)" },
+          "50%": { boxShadow: "0 0 40px hsl(24 95% 53% / 0.8)" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "fade-in-up": "fade-in-up 0.8s ease-out forwards",
+        "float": "float 3s ease-in-out infinite",
+        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
+      },
+      backgroundImage: {
+        "gradient-sky": "linear-gradient(135deg, hsl(201 96% 32%) 0%, hsl(201 80% 50%) 100%)",
+        "gradient-sunset": "linear-gradient(135deg, hsl(24 95% 53%) 0%, hsl(350 80% 55%) 100%)",
+        "gradient-sky-sunset": "linear-gradient(135deg, hsl(201 96% 32%) 0%, hsl(201 80% 50%) 50%, hsl(24 95% 53%) 100%)",
+        "gradient-hero": "linear-gradient(to bottom, hsl(215 28% 17% / 0.3) 0%, hsl(215 28% 17% / 0.5) 50%, hsl(215 28% 17% / 0.8) 100%)",
+      },
+      boxShadow: {
+        "glow-primary": "0 0 30px hsl(201 96% 32% / 0.4)",
+        "glow-accent": "0 0 30px hsl(24 95% 53% / 0.4)",
+        "card-hover": "0 20px 40px -15px hsl(201 96% 32% / 0.3)",
       },
     },
   },
