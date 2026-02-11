@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Menu, X, Mountain } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Menu, X, Mountain, User, LogOut, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 const navigation = [
   { name: "Home", href: "/" },
@@ -18,6 +19,8 @@ export function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, role, signOut } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -92,9 +95,30 @@ export function Header() {
             ))}
           </div>
 
-          {/* CTA Button */}
-          <div className="hidden lg:block">
-            <Button asChild variant={isScrolled ? "hero" : "hero"} size="lg">
+          {/* CTA Buttons */}
+          <div className="hidden lg:flex items-center gap-3">
+            {user ? (
+              <>
+                {role === "admin" && (
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/admin"><LayoutDashboard className="h-4 w-4 mr-1" /> Admin</Link>
+                  </Button>
+                )}
+                {role === "vendor" && (
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/vendor/dashboard"><LayoutDashboard className="h-4 w-4 mr-1" /> Dashboard</Link>
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={() => { signOut(); navigate("/"); }}>
+                  <LogOut className="h-4 w-4 mr-1" /> Sign Out
+                </Button>
+              </>
+            ) : (
+              <Button asChild variant="outline" size="sm">
+                <Link to="/auth"><User className="h-4 w-4 mr-1" /> Sign In</Link>
+              </Button>
+            )}
+            <Button asChild variant="hero" size="lg">
               <Link to="/packages">Book Now</Link>
             </Button>
           </div>
@@ -138,7 +162,28 @@ export function Header() {
                 {item.name}
               </Link>
             ))}
-            <div className="pt-2">
+            <div className="pt-2 space-y-2">
+              {user ? (
+                <>
+                  {role === "admin" && (
+                    <Button asChild variant="outline" className="w-full">
+                      <Link to="/admin"><LayoutDashboard className="h-4 w-4 mr-1" /> Admin Dashboard</Link>
+                    </Button>
+                  )}
+                  {role === "vendor" && (
+                    <Button asChild variant="outline" className="w-full">
+                      <Link to="/vendor/dashboard"><LayoutDashboard className="h-4 w-4 mr-1" /> Vendor Dashboard</Link>
+                    </Button>
+                  )}
+                  <Button variant="ghost" className="w-full" onClick={() => { signOut(); navigate("/"); }}>
+                    <LogOut className="h-4 w-4 mr-1" /> Sign Out
+                  </Button>
+                </>
+              ) : (
+                <Button asChild variant="outline" className="w-full">
+                  <Link to="/auth"><User className="h-4 w-4 mr-1" /> Sign In</Link>
+                </Button>
+              )}
               <Button asChild variant="hero" className="w-full">
                 <Link to="/packages">Book Now</Link>
               </Button>
