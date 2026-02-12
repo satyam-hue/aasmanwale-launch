@@ -37,22 +37,13 @@ const VendorRegister = () => {
     setLoading(true);
 
     try {
-      // Create vendor profile
+      // Create vendor profile (role assignment happens when admin approves)
       const { error: vendorError } = await supabase.from("vendors").insert({
         user_id: user.id,
         ...formData,
       });
 
       if (vendorError) throw vendorError;
-
-      // Add vendor role
-      const { error: roleError } = await supabase.from("user_roles").insert({
-        user_id: user.id,
-        role: "vendor" as any,
-      });
-
-      // Role insert may fail if user doesn't have admin privileges - that's ok
-      // The admin will assign the role during approval
 
       toast.success("Vendor registration submitted! Please wait for admin approval.");
       navigate("/");
