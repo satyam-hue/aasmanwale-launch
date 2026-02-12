@@ -326,6 +326,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_booked_count: { Args: { slot_id: string }; Returns: undefined }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_vendor_owner: {
         Args: { _user_id: string; _vendor_id: string }

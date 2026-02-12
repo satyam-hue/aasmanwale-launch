@@ -1,71 +1,40 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
-import { Clock, Users, Camera, Check, Star, ArrowRight, Calendar } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Clock, Users, Camera, Check, Star, ArrowRight, Calendar, Building2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 import tandemImage from "@/assets/tandem-flight.jpg";
 import takeoffImage from "@/assets/bir-billing-takeoff.jpg";
 import canopyImage from "@/assets/paraglider-canopy.jpg";
 
-const packages = [
-  {
-    id: "short-flight",
-    name: "Short Joy Ride",
-    duration: "10-15 minutes",
-    altitude: "2000+ ft above landing",
-    price: 2500,
-    originalPrice: 3000,
-    description: "Perfect first-time experience with stunning valley views. Ideal for those short on time or trying paragliding for the first time.",
-    image: tandemImage,
-    popular: false,
-    includes: [
-      "Tandem flight with certified pilot",
-      "All safety equipment",
-      "Pick-up from Bir landing site",
-      "Basic photos (5-10 shots)",
-      "Flight certificate",
-    ],
-  },
-  {
-    id: "medium-flight",
-    name: "High Fly Adventure",
-    duration: "20-25 minutes",
-    altitude: "4000+ ft above landing",
-    price: 3500,
-    originalPrice: 4000,
-    description: "Extended flight with optional acrobatic maneuvers. Perfect balance of thrill and scenic beauty with HD video included.",
-    image: takeoffImage,
-    popular: true,
-    includes: [
-      "Everything in Short Joy Ride",
-      "HD GoPro video recording",
-      "Professional photos (20+ shots)",
-      "Optional acrobatic maneuvers",
-      "Free hotel pick-up (within Bir)",
-      "Refreshments post-flight",
-    ],
-  },
-  {
-    id: "long-flight",
-    name: "Cross Country Epic",
-    duration: "30-45 minutes",
-    altitude: "6000+ ft above landing",
-    price: 5500,
-    originalPrice: 6500,
-    description: "Ultimate Himalayan paragliding experience. Soar across multiple valleys with panoramic views of the Dhauladhar range.",
-    image: canopyImage,
-    popular: false,
-    includes: [
-      "Everything in High Fly Adventure",
-      "Cross-country route over multiple valleys",
-      "360° panoramic Himalayan views",
-      "Advanced acrobatic options",
-      "Priority booking & flexible timing",
-      "Exclusive souvenir merchandise",
-      "Free hotel pick-up & drop",
-    ],
-  },
-];
+const fallbackImages = [tandemImage, takeoffImage, canopyImage];
+
+interface VendorPackage {
+  id: string;
+  name: string;
+  description: string | null;
+  duration_minutes: number;
+  price: number;
+  max_altitude: string | null;
+  includes: string[] | null;
+  is_active: boolean;
+  vendor_id: string;
+  vendors: { company_name: string; location: string | null } | null;
+}
+
+interface TimeSlot {
+  id: string;
+  slot_date: string;
+  start_time: string;
+  end_time: string;
+  capacity: number;
+  booked_count: number;
+  is_available: boolean;
+}
 
 const addons = [
   { name: "Extra HD Video", price: 500, description: "Additional camera angle footage" },
@@ -75,7 +44,103 @@ const addons = [
 ];
 
 const Packages = () => {
+  const { user } = useAuth();
+  const [packages, setPackages] = useState<VendorPackage[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [showBookingForm, setShowBookingForm] = useState(false);
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingForm, setBookingForm] = useState({
+    customer_name: "",
+    customer_email: "",
+    customer_phone: "",
+    notes: "",
+  });
+
+  useEffect(() => {
+    fetchPackages();
+  }, []);
+
+  const fetchPackages = async () => {
+    const { data, error } = await supabase
+      .from("packages")
+      .select("*, vendors(company_name, location)")
+      .eq("is_active", true)
+      .order("price");
+
+    if (data) setPackages(data as any);
+    setLoading(false);
+  };
+
+  const handleSelectPackage = async (pkg: VendorPackage) => {
+    setSelectedPackage(pkg.id);
+    setSelectedSlot(null);
+    setShowBookingForm(false);
+
+    // Fetch available time slots for this vendor
+    const { data } = await supabase
+      .from("time_slots")
+      .select("*")
+      .eq("vendor_id", pkg.vendor_id)
+      .eq("is_available", true)
+      .gte("slot_date", new Date().toISOString().split("T")[0])
+      .order("slot_date")
+      .order("start_time");
+
+    setTimeSlots((data || []).filter((s) => s.booked_count < s.capacity));
+  };
+
+  const handleBookNow = () => {
+    if (!selectedPackage) {
+      toast.error("Please select a package first");
+      return;
+    }
+    if (!user) {
+      toast.error("Please sign in to book");
+      return;
+    }
+    setShowBookingForm(true);
+    setBookingForm({
+      customer_name: "",
+      customer_email: user.email || "",
+      customer_phone: "",
+      notes: "",
+    });
+  };
+
+  const handleSubmitBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPackage) return;
+
+    const pkg = packages.find((p) => p.id === selectedPackage);
+    if (!pkg) return;
+
+    setBookingLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-booking", {
+        body: {
+          package_id: pkg.id,
+          vendor_id: pkg.vendor_id,
+          time_slot_id: selectedSlot || null,
+          ...bookingForm,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success("Booking created successfully! You'll receive a confirmation email.");
+      setShowBookingForm(false);
+      setSelectedPackage(null);
+      setSelectedSlot(null);
+    } catch (err: any) {
+      toast.error(err.message || "Booking failed");
+    } finally {
+      setBookingLoading(false);
+    }
+  };
 
   return (
     <Layout>
@@ -98,95 +163,175 @@ const Packages = () => {
       {/* Packages Grid */}
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-3 gap-8">
-            {packages.map((pkg) => (
-              <div
-                key={pkg.id}
-                id={pkg.id}
-                className={`bg-card rounded-2xl overflow-hidden shadow-lg transition-all duration-300 ${
-                  selectedPackage === pkg.id ? "ring-2 ring-accent scale-105" : "hover:shadow-xl"
-                }`}
-                onClick={() => setSelectedPackage(pkg.id)}
-              >
-                {/* Popular Badge */}
-                {pkg.popular && (
-                  <div className="bg-accent text-accent-foreground text-center py-2 font-display font-semibold text-sm flex items-center justify-center gap-2">
-                    <Star className="h-4 w-4" />
-                    Most Popular Choice
+          {loading ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Loading packages...</p>
+            </div>
+          ) : packages.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No packages available yet. Check back soon!</p>
+            </div>
+          ) : (
+            <div className="grid lg:grid-cols-3 gap-8">
+              {packages.map((pkg, index) => (
+                <div
+                  key={pkg.id}
+                  className={`bg-card rounded-2xl overflow-hidden shadow-lg transition-all duration-300 ${
+                    selectedPackage === pkg.id ? "ring-2 ring-accent scale-105" : "hover:shadow-xl"
+                  }`}
+                  onClick={() => handleSelectPackage(pkg)}
+                >
+                  {/* Image */}
+                  <div className="aspect-video image-zoom">
+                    <img
+                      src={fallbackImages[index % fallbackImages.length]}
+                      alt={pkg.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                )}
 
-                {/* Image */}
-                <div className="aspect-video image-zoom">
-                  <img
-                    src={pkg.image}
-                    alt={pkg.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-
-                {/* Content */}
-                <div className="p-6">
-                  <h2 className="font-display font-bold text-2xl text-foreground mb-2">
-                    {pkg.name}
-                  </h2>
-                  <p className="text-muted-foreground mb-4">{pkg.description}</p>
-
-                  {/* Details */}
-                  <div className="flex flex-wrap gap-4 mb-6 text-sm">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Clock className="h-4 w-4 text-primary" />
-                      {pkg.duration}
+                  {/* Content */}
+                  <div className="p-6">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground font-medium">
+                        {pkg.vendors?.company_name || "Vendor"} {pkg.vendors?.location ? `• ${pkg.vendors.location}` : ""}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Users className="h-4 w-4 text-primary" />
-                      Tandem Flight
+                    <h2 className="font-display font-bold text-2xl text-foreground mb-2">
+                      {pkg.name}
+                    </h2>
+                    <p className="text-muted-foreground mb-4">{pkg.description}</p>
+
+                    {/* Details */}
+                    <div className="flex flex-wrap gap-4 mb-6 text-sm">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Clock className="h-4 w-4 text-primary" />
+                        {pkg.duration_minutes} min
+                      </div>
+                      {pkg.max_altitude && (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Users className="h-4 w-4 text-primary" />
+                          {pkg.max_altitude}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Camera className="h-4 w-4 text-primary" />
+                        Tandem Flight
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Camera className="h-4 w-4 text-primary" />
-                      Photos Included
+
+                    {/* Price */}
+                    <div className="flex items-baseline gap-3 mb-6">
+                      <span className="font-display font-bold text-3xl text-primary">
+                        ₹{pkg.price.toLocaleString()}
+                      </span>
                     </div>
-                  </div>
 
-                  {/* Price */}
-                  <div className="flex items-baseline gap-3 mb-6">
-                    <span className="font-display font-bold text-3xl text-primary">
-                      ₹{pkg.price.toLocaleString()}
-                    </span>
-                    <span className="text-muted-foreground line-through">
-                      ₹{pkg.originalPrice.toLocaleString()}
-                    </span>
-                    <span className="bg-accent/10 text-accent px-2 py-1 rounded text-sm font-semibold">
-                      Save ₹{(pkg.originalPrice - pkg.price).toLocaleString()}
-                    </span>
-                  </div>
+                    {/* Includes */}
+                    {pkg.includes && pkg.includes.length > 0 && (
+                      <div className="mb-6">
+                        <h4 className="font-display font-semibold text-sm text-foreground mb-3">
+                          What's Included:
+                        </h4>
+                        <ul className="space-y-2">
+                          {pkg.includes.map((item) => (
+                            <li key={item} className="flex items-start gap-2 text-sm text-muted-foreground">
+                              <Check className="h-4 w-4 text-secondary shrink-0 mt-0.5" />
+                              {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
 
-                  {/* Includes */}
-                  <div className="mb-6">
-                    <h4 className="font-display font-semibold text-sm text-foreground mb-3">
-                      What's Included:
-                    </h4>
-                    <ul className="space-y-2">
-                      {pkg.includes.map((item) => (
-                        <li key={item} className="flex items-start gap-2 text-sm text-muted-foreground">
-                          <Check className="h-4 w-4 text-secondary shrink-0 mt-0.5" />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* CTA */}
-                  <Button asChild variant={pkg.popular ? "hero" : "default"} className="w-full" size="lg">
-                    <Link to="/contact">
+                    {/* CTA */}
+                    <Button
+                      variant={selectedPackage === pkg.id ? "hero" : "default"}
+                      className="w-full"
+                      size="lg"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectPackage(pkg);
+                        handleBookNow();
+                      }}
+                    >
                       <Calendar className="h-4 w-4" />
                       Book This Package
-                    </Link>
-                  </Button>
+                    </Button>
+                  </div>
                 </div>
+              ))}
+            </div>
+          )}
+
+          {/* Time Slot Selection */}
+          {selectedPackage && timeSlots.length > 0 && (
+            <div className="mt-12 max-w-2xl mx-auto">
+              <h3 className="font-display font-bold text-xl text-foreground mb-4">Select a Time Slot</h3>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {timeSlots.map((slot) => (
+                  <button
+                    key={slot.id}
+                    onClick={() => setSelectedSlot(slot.id)}
+                    className={`p-4 rounded-xl border text-left transition-all ${
+                      selectedSlot === slot.id
+                        ? "border-accent bg-accent/10 ring-1 ring-accent"
+                        : "border-border bg-card hover:border-primary"
+                    }`}
+                  >
+                    <p className="font-display font-semibold text-foreground">{slot.slot_date}</p>
+                    <p className="text-sm text-muted-foreground">{slot.start_time} - {slot.end_time}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{slot.capacity - slot.booked_count} spots left</p>
+                  </button>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
+
+          {/* Booking Form */}
+          {showBookingForm && (
+            <div className="mt-8 max-w-lg mx-auto bg-card p-8 rounded-2xl shadow-lg">
+              <h3 className="font-display font-bold text-xl text-foreground mb-6">Complete Your Booking</h3>
+              <form onSubmit={handleSubmitBooking} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Full Name *</label>
+                  <Input
+                    value={bookingForm.customer_name}
+                    onChange={(e) => setBookingForm({ ...bookingForm, customer_name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Email *</label>
+                  <Input
+                    type="email"
+                    value={bookingForm.customer_email}
+                    onChange={(e) => setBookingForm({ ...bookingForm, customer_email: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Phone</label>
+                  <Input
+                    value={bookingForm.customer_phone}
+                    onChange={(e) => setBookingForm({ ...bookingForm, customer_phone: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Notes</label>
+                  <Input
+                    value={bookingForm.notes}
+                    onChange={(e) => setBookingForm({ ...bookingForm, notes: e.target.value })}
+                    placeholder="Any special requirements..."
+                  />
+                </div>
+                <Button type="submit" variant="hero" size="lg" className="w-full" disabled={bookingLoading}>
+                  {bookingLoading ? "Processing..." : "Confirm Booking"}
+                </Button>
+              </form>
+            </div>
+          )}
         </div>
       </section>
 
@@ -244,10 +389,10 @@ const Packages = () => {
               ))}
             </div>
             <Button asChild variant="hero" size="xl">
-              <Link to="/contact">
+              <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
                 Start Booking
                 <ArrowRight className="h-5 w-5" />
-              </Link>
+              </a>
             </Button>
           </div>
         </div>
