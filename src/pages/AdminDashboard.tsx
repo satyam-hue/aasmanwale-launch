@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle, XCircle, Settings, Users, DollarSign, BookOpen } from "lucide-react";
+import { CheckCircle, XCircle, Settings, Users, DollarSign, BookOpen, Plus } from "lucide-react";
 
 interface Vendor {
   id: string;
@@ -40,6 +40,17 @@ const AdminDashboard = () => {
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [commission, setCommission] = useState<number>(15);
   const [commissionId, setCommissionId] = useState<string | null>(null);
+  const [allPackages, setAllPackages] = useState<{ id: string; name: string; vendor_id: string; vendors: { company_name: string } | null }[]>([]);
+  const [showManualBooking, setShowManualBooking] = useState(false);
+  const [manualLoading, setManualLoading] = useState(false);
+  const [manualForm, setManualForm] = useState({
+    package_id: "",
+    vendor_id: "",
+    customer_name: "",
+    customer_email: "",
+    customer_phone: "",
+    notes: "",
+  });
 
   useEffect(() => {
     if (!user) { navigate("/auth"); return; }
@@ -48,10 +59,11 @@ const AdminDashboard = () => {
   }, [user, role]);
 
   const fetchData = async () => {
-    const [vendorRes, bookingRes, commissionRes] = await Promise.all([
+    const [vendorRes, bookingRes, commissionRes, pkgRes] = await Promise.all([
       supabase.from("vendors").select("*").order("created_at", { ascending: false }),
       supabase.from("bookings").select("*, vendors(company_name), packages(name)").order("created_at", { ascending: false }),
       supabase.from("commission_settings").select("*").limit(1).single(),
+      supabase.from("packages").select("id, name, vendor_id, vendors(company_name)").eq("is_active", true),
     ]);
 
     if (vendorRes.data) setVendors(vendorRes.data);
@@ -60,6 +72,7 @@ const AdminDashboard = () => {
       setCommission(Number(commissionRes.data.percentage));
       setCommissionId(commissionRes.data.id);
     }
+    if (pkgRes.data) setAllPackages(pkgRes.data as any);
   };
 
   const handleApproveVendor = async (vendorId: string, approve: boolean) => {
@@ -89,6 +102,26 @@ const AdminDashboard = () => {
     const { error } = await supabase.from("commission_settings").update({ percentage: commission, updated_by: user?.id }).eq("id", commissionId);
     if (error) { toast.error(error.message); return; }
     toast.success("Commission updated!");
+  };
+
+  const handleManualBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setManualLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-booking", {
+        body: { ...manualForm, is_manual_booking: true },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success("Manual booking created!");
+      setShowManualBooking(false);
+      setManualForm({ package_id: "", vendor_id: "", customer_name: "", customer_email: "", customer_phone: "", notes: "" });
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create booking");
+    } finally {
+      setManualLoading(false);
+    }
   };
 
   const totalRevenue = bookings.reduce((sum, b) => sum + Number(b.total_amount), 0);
@@ -183,7 +216,41 @@ const AdminDashboard = () => {
 
             {/* BOOKINGS TAB */}
             <TabsContent value="bookings">
-              <h2 className="font-display font-bold text-xl text-foreground mb-6">All Bookings</h2>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="font-display font-bold text-xl text-foreground">All Bookings</h2>
+                <Button onClick={() => setShowManualBooking(!showManualBooking)} variant="default" size="sm">
+                  <Plus className="h-4 w-4" /> Manual Booking
+                </Button>
+              </div>
+
+              {showManualBooking && (
+                <div className="bg-card p-6 rounded-xl shadow-md mb-6 max-w-lg">
+                  <h3 className="font-display font-semibold text-foreground mb-4">Create Manual Booking</h3>
+                  <form onSubmit={handleManualBooking} className="space-y-3">
+                    <select
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      value={manualForm.package_id}
+                      onChange={(e) => {
+                        const pkg = allPackages.find((p) => p.id === e.target.value);
+                        setManualForm({ ...manualForm, package_id: e.target.value, vendor_id: pkg?.vendor_id || "" });
+                      }}
+                      required
+                    >
+                      <option value="">Select Package</option>
+                      {allPackages.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name} ({(p.vendors as any)?.company_name})</option>
+                      ))}
+                    </select>
+                    <Input placeholder="Customer Name" value={manualForm.customer_name} onChange={(e) => setManualForm({ ...manualForm, customer_name: e.target.value })} required />
+                    <Input type="email" placeholder="Customer Email" value={manualForm.customer_email} onChange={(e) => setManualForm({ ...manualForm, customer_email: e.target.value })} required />
+                    <Input placeholder="Phone (optional)" value={manualForm.customer_phone} onChange={(e) => setManualForm({ ...manualForm, customer_phone: e.target.value })} />
+                    <div className="flex gap-2">
+                      <Button type="submit" variant="hero" size="sm" disabled={manualLoading}>{manualLoading ? "Creating..." : "Create Booking"}</Button>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setShowManualBooking(false)}>Cancel</Button>
+                    </div>
+                  </form>
+                </div>
+              )}
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
