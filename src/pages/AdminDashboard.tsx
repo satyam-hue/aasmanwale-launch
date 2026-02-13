@@ -86,7 +86,7 @@ const AdminDashboard = () => {
       supabase.from("vendors").select("*").order("created_at", { ascending: false }),
       supabase.from("bookings").select("*, vendors(company_name), packages(name)").order("created_at", { ascending: false }),
       supabase.from("commission_settings").select("*").limit(1).single(),
-      supabase.from("packages").select("id, name, vendor_id, vendors(company_name)").eq("is_active", true),
+      supabase.from("packages").select("id, name, vendor_id, vendors(company_name, is_approved)").order("price"),
     ]);
 
     if (vendorRes.data) setVendors(vendorRes.data);

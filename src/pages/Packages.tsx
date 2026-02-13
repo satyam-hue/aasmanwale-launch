@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { fetchCustomerPackages } from "@/lib/packageQueries";
 import tandemImage from "@/assets/tandem-flight.jpg";
 import takeoffImage from "@/assets/bir-billing-takeoff.jpg";
 import canopyImage from "@/assets/paraglider-canopy.jpg";
@@ -64,14 +65,29 @@ const Packages = () => {
   }, []);
 
   const fetchPackages = async () => {
-    const { data, error } = await supabase
-      .from("packages")
-      .select("*, vendors(company_name, location)")
-      .eq("is_active", true)
-      .order("price");
-
-    if (data) setPackages(data as any);
-    setLoading(false);
+    setLoading(true);
+    try {
+      const publishedPackages = await fetchCustomerPackages();
+      setPackages(publishedPackages as any);
+      
+      // Debug log to help identify visibility issues
+      if (publishedPackages.length === 0) {
+        console.warn(
+          "[PACKAGE VISIBILITY DEBUG] No packages returned. Possible causes:",
+          "- No vendors are approved",
+          "- No packages are active (is_active=true)",
+          "- No future time slots exist with available capacity",
+          "- RLS policies blocking access"
+        );
+      } else {
+        console.log(`[PACKAGE VISIBILITY] Showing ${publishedPackages.length} bookable packages`);
+      }
+    } catch (error) {
+      console.error("Error fetching packages:", error);
+      toast.error("Failed to load packages. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSelectPackage = async (pkg: VendorPackage) => {
