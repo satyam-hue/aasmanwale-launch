@@ -2,3 +2,6 @@ project_id = "lrtvgcjjsycdgnpjkars"
 
 [functions.send-contact-sms]
 verify_jwt = false
+
+[functions.create-booking]
+verify_jwt = false
