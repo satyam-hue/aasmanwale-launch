@@ -131,7 +131,10 @@ serve(async (req) => {
     const commissionAmount = Math.round((totalAmount * commissionRate) / 100 * 100) / 100;
     const vendorAmount = Math.round((totalAmount - commissionAmount) * 100) / 100;
 
-    // Create booking
+    // Create booking with new booking_status field
+    const bookingStatus = is_manual_booking ? "confirmed" : "pending";
+    const now = new Date().toISOString();
+    
     const { data: booking, error: bookingError } = await adminClient
       .from("bookings")
       .insert({
@@ -148,6 +151,8 @@ serve(async (req) => {
         vendor_amount: vendorAmount,
         status: is_manual_booking ? "confirmed" : "pending",
         payment_status: is_manual_booking ? "paid" : "unpaid",
+        booking_status: bookingStatus,
+        confirmed_at: is_manual_booking ? now : null,
       })
       .select()
       .single();
@@ -162,6 +167,20 @@ serve(async (req) => {
     // Increment time slot booked_count
     if (time_slot_id) {
       await adminClient.rpc("increment_booked_count" as any, { slot_id: time_slot_id });
+    }
+
+    // If manual booking (admin creates), record earnings immediately
+    if (is_manual_booking) {
+      try {
+        await adminClient.rpc("record_booking_earnings", {
+          _booking_id: booking.id,
+          _vendor_id: vendor_id,
+          _gross_amount: totalAmount,
+        });
+      } catch (e) {
+        console.error("Error recording earnings:", e);
+        // Don't fail the booking creation if earnings recording fails
+      }
     }
 
     return new Response(JSON.stringify({ booking }), {
