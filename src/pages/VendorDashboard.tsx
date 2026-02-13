@@ -7,8 +7,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { Package, Clock, Calendar, Plus, Trash2, Edit2, CheckCircle, XCircle } from "lucide-react";
+import { Package, Clock, Calendar, Plus, Trash2, Edit2, CheckCircle, XCircle, Wallet, TrendingUp } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  calculateVendorEarnings, 
+  getVendorWallet, 
+  getVendorSettlements, 
+  getVendorPayouts,
+  getVendorBookingsFinancials,
+  formatCurrency,
+  formatDate
+} from "@/lib/earningsCalculator";
 
 interface VendorPackage {
   id: string;
@@ -43,6 +52,29 @@ interface Booking {
   time_slots: { slot_date: string; start_time: string } | null;
 }
 
+interface VendorEarnings {
+  total_gross: number;
+  commission: number;
+  earnings: number;
+  completed_count: number;
+  pending_count: number;
+  confirmed_count: number;
+}
+
+interface SettlementTx {
+  id: string;
+  amount: number;
+  reason: string;
+  created_at: string;
+}
+
+interface Payout {
+  id: string;
+  amount: number;
+  status: string;
+  created_at: string;
+}
+
 const VendorDashboard = () => {
   const { user, vendorId } = useAuth();
   const navigate = useNavigate();
@@ -53,6 +85,13 @@ const VendorDashboard = () => {
   const [showPackageForm, setShowPackageForm] = useState(false);
   const [showSlotForm, setShowSlotForm] = useState(false);
   const [editingPackage, setEditingPackage] = useState<string | null>(null);
+
+  // Earnings states
+  const [earnings, setEarnings] = useState<VendorEarnings | null>(null);
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [settlements, setSettlements] = useState<SettlementTx[]>([]);
+  const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [earningsLoading, setEarningsLoading] = useState(false);
 
   const [packageForm, setPackageForm] = useState({
     name: "", description: "", duration_minutes: 30, price: 0,
@@ -83,6 +122,31 @@ const VendorDashboard = () => {
     if (pkgRes.data) setPackages(pkgRes.data);
     if (slotsRes.data) setTimeSlots(slotsRes.data);
     if (bookingsRes.data) setBookings(bookingsRes.data as any);
+
+    // Fetch earnings data
+    fetchEarningsData();
+  };
+
+  const fetchEarningsData = async () => {
+    if (!vendorId) return;
+    setEarningsLoading(true);
+    try {
+      const [earnData, walletData, settlementData, payoutData] = await Promise.all([
+        calculateVendorEarnings(vendorId),
+        getVendorWallet(vendorId),
+        getVendorSettlements(vendorId),
+        getVendorPayouts(vendorId),
+      ]);
+
+      setEarnings(earnData);
+      setWalletBalance(walletData?.balance || 0);
+      setSettlements(settlementData || []);
+      setPayouts(payoutData || []);
+    } catch (error) {
+      console.error("Error fetching earnings data:", error);
+    } finally {
+      setEarningsLoading(false);
+    }
   };
 
   const handleAddPackage = async (e: React.FormEvent) => {
@@ -187,6 +251,7 @@ const VendorDashboard = () => {
             <TabsList className="mb-6">
               <TabsTrigger value="packages">Packages</TabsTrigger>
               <TabsTrigger value="slots">Time Slots</TabsTrigger>
+              <TabsTrigger value="earnings">Earnings</TabsTrigger>
               <TabsTrigger value="bookings">Bookings</TabsTrigger>
             </TabsList>
 
@@ -303,7 +368,132 @@ const VendorDashboard = () => {
               </div>
             </TabsContent>
 
-            {/* BOOKINGS TAB */}
+            {/* EARNINGS TAB */}
+            <TabsContent value="earnings">
+              <h2 className="font-display font-bold text-xl text-foreground mb-6">Earnings & Commissions</h2>
+              
+              {earningsLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading earnings data...</div>
+              ) : earnings ? (
+                <div className="space-y-6">
+                  {/* Summary Cards */}
+                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-card p-6 rounded-xl shadow-md border border-border">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-muted-foreground">Wallet Balance</span>
+                        <Wallet className="h-4 w-4 text-primary" />
+                      </div>
+                      <p className="font-display font-bold text-2xl text-primary">{formatCurrency(walletBalance)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Available for withdrawal</p>
+                    </div>
+
+                    <div className="bg-card p-6 rounded-xl shadow-md border border-border">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-muted-foreground">Gross Amount</span>
+                        <TrendingUp className="h-4 w-4 text-secondary" />
+                      </div>
+                      <p className="font-display font-bold text-2xl text-secondary">{formatCurrency(earnings.total_gross)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{earnings.completed_count} completed</p>
+                    </div>
+
+                    <div className="bg-card p-6 rounded-xl shadow-md border border-border">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-muted-foreground">Commission Paid</span>
+                        <TrendingUp className="h-4 w-4 text-accent" />
+                      </div>
+                      <p className="font-display font-bold text-2xl text-accent">{formatCurrency(earnings.commission)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">~{((earnings.commission / earnings.total_gross) * 100).toFixed(1)}% of gross</p>
+                    </div>
+
+                    <div className="bg-card p-6 rounded-xl shadow-md border border-border">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-muted-foreground">Your Earnings</span>
+                        <TrendingUp className="h-4 w-4 text-green-500" />
+                      </div>
+                      <p className="font-display font-bold text-2xl text-green-500">{formatCurrency(earnings.earnings)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{earnings.confirmed_count + earnings.pending_count} active</p>
+                    </div>
+                  </div>
+
+                  {/* Earnings Breakdown */}
+                  <div className="bg-card p-6 rounded-xl shadow-md border border-border">
+                    <h3 className="font-display font-semibold text-lg text-foreground mb-4">Booking Status Breakdown</h3>
+                    <div className="grid sm:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Completed Bookings</p>
+                        <p className="font-display font-bold text-lg text-secondary">{earnings.completed_count}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Confirmed & Pending</p>
+                        <p className="font-display font-bold text-lg text-accent">{earnings.confirmed_count + earnings.pending_count}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Total Amount</p>
+                        <p className="font-display font-bold text-lg text-primary">{formatCurrency(earnings.total_gross)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Settlements Table */}
+                  {settlements.length > 0 && (
+                    <div className="bg-card p-6 rounded-xl shadow-md border border-border overflow-x-auto">
+                      <h3 className="font-display font-semibold text-lg text-foreground mb-4">Settlement History</h3>
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b text-left">
+                            <th className="p-3 font-display font-semibold text-foreground">Date</th>
+                            <th className="p-3 font-display font-semibold text-foreground">Reason</th>
+                            <th className="p-3 font-display font-semibold text-foreground text-right">Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {settlements.map((tx) => (
+                            <tr key={tx.id} className="border-b">
+                              <td className="p-3 text-muted-foreground">{formatDate(tx.created_at)}</td>
+                              <td className="p-3 text-foreground">{tx.reason}</td>
+                              <td className="p-3 text-right font-semibold text-primary">{formatCurrency(tx.amount)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Payouts Table */}
+                  {payouts.length > 0 && (
+                    <div className="bg-card p-6 rounded-xl shadow-md border border-border overflow-x-auto">
+                      <h3 className="font-display font-semibold text-lg text-foreground mb-4">Payout History</h3>
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b text-left">
+                            <th className="p-3 font-display font-semibold text-foreground">Date</th>
+                            <th className="p-3 font-display font-semibold text-foreground">Amount</th>
+                            <th className="p-3 font-display font-semibold text-foreground">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {payouts.map((payout) => (
+                            <tr key={payout.id} className="border-b">
+                              <td className="p-3 text-muted-foreground">{formatDate(payout.created_at)}</td>
+                              <td className="p-3 font-semibold text-primary">{formatCurrency(payout.amount)}</td>
+                              <td className="p-3">
+                                <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                  payout.status === "completed" ? "bg-green-100 text-green-700" :
+                                  payout.status === "pending" ? "bg-accent/20 text-accent" :
+                                  "bg-destructive/20 text-destructive"
+                                }`}>{payout.status}</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">No earnings data available yet.</div>
+              )}
+            </TabsContent>
             <TabsContent value="bookings">
               <h2 className="font-display font-bold text-xl text-foreground mb-6">Bookings</h2>
               <div className="overflow-x-auto">

@@ -7,7 +7,9 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle, XCircle, Settings, Users, DollarSign, BookOpen, Plus } from "lucide-react";
+import { CheckCircle, XCircle, Settings, Users, DollarSign, BookOpen, Plus, TrendingUp } from "lucide-react";
+import { getAdminFinancials, formatCurrency, formatDate } from "@/lib/earningsCalculator";
+import { approveVendor } from "@/lib/roleManagement";
 
 interface Vendor {
   id: string;
@@ -33,6 +35,22 @@ interface AdminBooking {
   packages: { name: string } | null;
 }
 
+interface AdminFinancials {
+  total_bookings: number;
+  total_revenue: number;
+  total_commission: number;
+  total_payouts: number;
+  pending_settlement: number;
+}
+
+interface VendorFinancial {
+  vendor_id: string;
+  vendor_name: string;
+  completed_bookings: number;
+  total_earnings: number;
+  pending_payouts: number;
+}
+
 const AdminDashboard = () => {
   const { user, role } = useAuth();
   const navigate = useNavigate();
@@ -51,6 +69,11 @@ const AdminDashboard = () => {
     customer_phone: "",
     notes: "",
   });
+
+  // Financial states
+  const [adminFinancials, setAdminFinancials] = useState<AdminFinancials | null>(null);
+  const [vendorFinancials, setVendorFinancials] = useState<VendorFinancial[]>([]);
+  const [financialsLoading, setFinancialsLoading] = useState(false);
 
   useEffect(() => {
     if (!user) { navigate("/auth"); return; }
@@ -73,27 +96,66 @@ const AdminDashboard = () => {
       setCommissionId(commissionRes.data.id);
     }
     if (pkgRes.data) setAllPackages(pkgRes.data as any);
+
+    // Fetch financial data
+    fetchFinancialData();
   };
 
-  const handleApproveVendor = async (vendorId: string, approve: boolean) => {
-    const { error } = await supabase.from("vendors").update({ is_approved: approve }).eq("id", vendorId);
-    if (error) { toast.error(error.message); return; }
+  const fetchFinancialData = async () => {
+    setFinancialsLoading(true);
+    try {
+      const financials = await getAdminFinancials();
+      setAdminFinancials(financials);
 
-    if (approve) {
-      // Add vendor role to user
-      const vendor = vendors.find((v) => v.id === vendorId);
-      if (vendor) {
-        const { data: vendorData } = await supabase.from("vendors").select("user_id").eq("id", vendorId).single();
-        if (vendorData) {
-          await supabase.from("user_roles").upsert(
-            { user_id: vendorData.user_id, role: "vendor" as any },
-            { onConflict: "user_id,role" }
-          );
-        }
+      // Fetch vendor-specific financials
+      if (vendors.length > 0) {
+        const vendorFinData = await Promise.all(
+          vendors.map(async (vendor) => {
+            const { data: bookingData } = await supabase
+              .from("bookings")
+              .select("total_amount, commission_amount, status")
+              .eq("vendor_id", vendor.id);
+
+            const completed = (bookingData || []).filter(b => b.status === "completed");
+            const completedEarnings = completed.reduce((sum, b) => sum + (b.total_amount - b.commission_amount), 0);
+            const totalEarnings = (bookingData || []).reduce((sum, b) => sum + (b.total_amount - b.commission_amount), 0);
+
+            return {
+              vendor_id: vendor.id,
+              vendor_name: vendor.company_name,
+              completed_bookings: completed.length,
+              total_earnings: completedEarnings,
+              pending_payouts: totalEarnings - completedEarnings,
+            };
+          })
+        );
+        setVendorFinancials(vendorFinData);
       }
+    } catch (error) {
+      console.error("Error fetching financial data:", error);
+    } finally {
+      setFinancialsLoading(false);
     }
+  };
 
-    toast.success(approve ? "Vendor approved!" : "Vendor rejected");
+  const handleApproveVendor = async (vendorId: string) => {
+    try {
+      const result = await approveVendor(vendorId, user?.id || "");
+      if (result.success) {
+        toast.success("Vendor approved and wallet created!");
+        fetchData();
+      } else {
+        toast.error(result.error || "Failed to approve vendor");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to approve vendor");
+    }
+  };
+
+  const handleRejectVendor = async (vendorId: string) => {
+    const { error } = await supabase.from("vendors").update({ is_approved: false }).eq("id", vendorId);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Vendor rejected");
     fetchData();
   };
 
@@ -166,6 +228,7 @@ const AdminDashboard = () => {
             <TabsList className="mb-6">
               <TabsTrigger value="vendors">Vendors</TabsTrigger>
               <TabsTrigger value="bookings">Bookings</TabsTrigger>
+              <TabsTrigger value="financials">Financials</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
 
@@ -196,12 +259,12 @@ const AdminDashboard = () => {
                         </td>
                         <td className="p-3 flex gap-2">
                           {!v.is_approved && (
-                            <button onClick={() => handleApproveVendor(v.id, true)} className="text-secondary hover:underline text-xs flex items-center gap-1">
+                            <button onClick={() => handleApproveVendor(v.id)} className="text-secondary hover:underline text-xs flex items-center gap-1">
                               <CheckCircle className="h-3 w-3" /> Approve
                             </button>
                           )}
                           {v.is_approved && (
-                            <button onClick={() => handleApproveVendor(v.id, false)} className="text-destructive hover:underline text-xs flex items-center gap-1">
+                            <button onClick={() => handleRejectVendor(v.id)} className="text-destructive hover:underline text-xs flex items-center gap-1">
                               <XCircle className="h-3 w-3" /> Revoke
                             </button>
                           )}
@@ -288,7 +351,84 @@ const AdminDashboard = () => {
               </div>
             </TabsContent>
 
-            {/* SETTINGS TAB */}
+            {/* FINANCIALS TAB */}
+            <TabsContent value="financials">
+              <h2 className="font-display font-bold text-xl text-foreground mb-6">Platform Financials</h2>
+
+              {financialsLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading financial data...</div>
+              ) : adminFinancials ? (
+                <div className="space-y-6">
+                  {/* Platform Summary Cards */}
+                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-card p-6 rounded-xl shadow-md border border-border">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-muted-foreground">Total Revenue</span>
+                        <TrendingUp className="h-4 w-4 text-primary" />
+                      </div>
+                      <p className="font-display font-bold text-2xl text-primary">{formatCurrency(adminFinancials.total_revenue)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{adminFinancials.total_bookings} bookings</p>
+                    </div>
+
+                    <div className="bg-card p-6 rounded-xl shadow-md border border-border">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-muted-foreground">Commission Earned</span>
+                        <TrendingUp className="h-4 w-4 text-accent" />
+                      </div>
+                      <p className="font-display font-bold text-2xl text-accent">{formatCurrency(adminFinancials.total_commission)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">~{((adminFinancials.total_commission / adminFinancials.total_revenue) * 100).toFixed(1)}% of revenue</p>
+                    </div>
+
+                    <div className="bg-card p-6 rounded-xl shadow-md border border-border">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-muted-foreground">Total Payouts</span>
+                        <TrendingUp className="h-4 w-4 text-secondary" />
+                      </div>
+                      <p className="font-display font-bold text-2xl text-secondary">{formatCurrency(adminFinancials.total_payouts)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">To vendors</p>
+                    </div>
+
+                    <div className="bg-card p-6 rounded-xl shadow-md border border-border">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-muted-foreground">Pending Settlement</span>
+                        <TrendingUp className="h-4 w-4 text-orange-500" />
+                      </div>
+                      <p className="font-display font-bold text-2xl text-orange-500">{formatCurrency(adminFinancials.pending_settlement)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Awaiting payout</p>
+                    </div>
+                  </div>
+
+                  {/* Vendor Earnings Table */}
+                  {vendorFinancials.length > 0 && (
+                    <div className="bg-card p-6 rounded-xl shadow-md border border-border overflow-x-auto">
+                      <h3 className="font-display font-semibold text-lg text-foreground mb-4">Vendor Earnings Breakdown</h3>
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b text-left">
+                            <th className="p-3 font-display font-semibold text-foreground">Vendor</th>
+                            <th className="p-3 font-display font-semibold text-foreground">Completed</th>
+                            <th className="p-3 font-display font-semibold text-foreground">Earnings</th>
+                            <th className="p-3 font-display font-semibold text-foreground">Pending</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {vendorFinancials.map((vf) => (
+                            <tr key={vf.vendor_id} className="border-b">
+                              <td className="p-3 text-foreground font-medium">{vf.vendor_name}</td>
+                              <td className="p-3 text-muted-foreground">{vf.completed_bookings}</td>
+                              <td className="p-3 font-semibold text-secondary">{formatCurrency(vf.total_earnings)}</td>
+                              <td className="p-3 font-semibold text-orange-500">{formatCurrency(vf.pending_payouts)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">No financial data available.</div>
+              )}
+            </TabsContent>
             <TabsContent value="settings">
               <h2 className="font-display font-bold text-xl text-foreground mb-6">Platform Settings</h2>
               <div className="bg-card p-6 rounded-xl shadow-md max-w-md">

@@ -8,6 +8,7 @@ interface AuthContextType {
   loading: boolean;
   role: "admin" | "vendor" | "customer" | null;
   vendorId: string | null;
+  vendorApproved: boolean;  // NEW: Track vendor approval status
   signOut: () => Promise<void>;
 }
 
@@ -17,6 +18,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   role: null,
   vendorId: null,
+  vendorApproved: false,
   signOut: async () => {},
 });
 
@@ -26,31 +28,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<"admin" | "vendor" | "customer" | null>(null);
   const [vendorId, setVendorId] = useState<string | null>(null);
+  const [vendorApproved, setVendorApproved] = useState(false);
 
   const fetchUserRole = async (userId: string) => {
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
+    try {
+      // Fetch user roles
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId);
 
-    if (data && data.length > 0) {
-      // Priority: admin > vendor > customer
-      const roles = data.map((r) => r.role);
-      if (roles.includes("admin")) setRole("admin");
-      else if (roles.includes("vendor")) setRole("vendor");
-      else setRole("customer");
-    } else {
-      setRole("customer");
+      if (roles && roles.length > 0) {
+        // Priority: admin > vendor > customer
+        const roleList = roles.map((r) => r.role);
+        if (roleList.includes("admin")) setRole("admin");
+        else if (roleList.includes("vendor")) setRole("vendor");
+        else setRole("customer");
+      } else {
+        setRole("customer");
+      }
+
+      // Check for vendor profile and approval status
+      const { data: vendor } = await supabase
+        .from("vendors")
+        .select("id, is_approved")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (vendor) {
+        setVendorId(vendor.id);
+        setVendorApproved(vendor.is_approved);
+      } else {
+        setVendorId(null);
+        setVendorApproved(false);
+      }
+    } catch (error) {
+      console.error("Error fetching user role:", error);
     }
-
-    // Check for vendor profile
-    const { data: vendor } = await supabase
-      .from("vendors")
-      .select("id")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    setVendorId(vendor?.id || null);
   };
 
   useEffect(() => {
@@ -59,10 +73,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          setTimeout(() => fetchUserRole(session.user.id), 0);
+          // Small delay to ensure database triggers have completed
+          setTimeout(() => fetchUserRole(session.user.id), 500);
         } else {
           setRole(null);
           setVendorId(null);
+          setVendorApproved(false);
         }
         setLoading(false);
       }
@@ -86,10 +102,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setRole(null);
     setVendorId(null);
+    setVendorApproved(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, role, vendorId, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, role, vendorId, vendorApproved, signOut }}>
       {children}
     </AuthContext.Provider>
   );
