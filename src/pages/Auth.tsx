@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { signupCustomer, signupVendor, getDashboardRoute } from "@/lib/roleManagement";
+import { useDashboardRouting } from "@/lib/dashboardRouting";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -19,24 +20,16 @@ const Auth = () => {
   const [location, setLocation] = useState(""); // NEW
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { user, role, vendorApproved, loading: authLoading } = useAuth();
+  const { user, role, vendorApproved, vendorId, loading: authLoading } = useAuth();
 
-  useEffect(() => {
-    if (user && !authLoading && role) {
-      // Route based on role and vendor approval status
-      if (role === "admin") {
-        navigate("/admin");
-      } else if (role === "vendor") {
-        if (vendorApproved) {
-          navigate("/vendor/dashboard");
-        } else {
-          navigate("/vendor/register"); // Show vendor registration status
-        }
-      } else {
-        navigate("/"); // Customer dashboard (home)
-      }
-    }
-  }, [user, role, vendorApproved, authLoading, navigate]);
+  // Use explicit dashboard routing hook for reliable role-based navigation
+  useDashboardRouting({
+    user,
+    role,
+    vendorId,
+    vendorApproved,
+    authLoading,
+  });
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,7 +109,19 @@ const Auth = () => {
 
   return (
     <Layout>
-      <section className="pt-32 pb-20 bg-gradient-to-br from-primary via-sky-light to-accent">
+      {/* Show loading state while auth is being processed and routed */}
+      {authLoading && user ? (
+        <section className="pt-32 pb-20 min-h-screen bg-gradient-to-br from-primary via-sky-light to-accent flex items-center justify-center">
+          <div className="container mx-auto px-4 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-foreground mx-auto mb-6"></div>
+            <h2 className="font-display font-bold text-2xl text-primary-foreground mb-2">
+              Preparing your dashboard...
+            </h2>
+            <p className="text-primary-foreground/80">Setting up your personalized experience</p>
+          </div>
+        </section>
+      ) : (
+        <section className="pt-32 pb-20 bg-gradient-to-br from-primary via-sky-light to-accent">
         <div className="container mx-auto px-4 text-center">
           <h1 className="font-display font-bold text-4xl sm:text-5xl text-primary-foreground mb-6">
             {isLogin
@@ -328,6 +333,7 @@ const Auth = () => {
           </div>
         </div>
       </section>
+      )}
     </Layout>
   );
 };
