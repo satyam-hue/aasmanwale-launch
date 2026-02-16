@@ -84,15 +84,23 @@ export async function calculateVendorEarnings(vendorId: string): Promise<VendorE
   const completedBookings = bookings.filter((b) => b.status === "completed");
   const pendingBookings = bookings.filter((b) => b.status === "pending" || b.status === "confirmed");
 
-  const total_gross = bookings.reduce((sum, b) => sum + b.total_amount, 0);
-  const total_commission = bookings.reduce((sum, b) => sum + b.commission_amount, 0);
+  // Only completed bookings count toward earnings
   const completed_gross = completedBookings.reduce((sum, b) => sum + b.total_amount, 0);
   const completed_commission = completedBookings.reduce((sum, b) => sum + b.commission_amount, 0);
+  const completed_vendor = completed_gross - completed_commission;
+
+  // Consistency check: vendor_amount fields should match calculated values
+  const vendor_amount_sum = completedBookings.reduce((sum, b) => sum + b.vendor_amount, 0);
+  if (Math.abs(vendor_amount_sum - completed_vendor) > 0.01) {
+    console.warn(
+      `[EarningsConsistency] vendor_amount sum (${vendor_amount_sum}) ≠ calculated (${completed_vendor}). Check booking records.`
+    );
+  }
 
   return {
-    total_gross,
-    total_commission,
-    total_earnings: completed_gross - completed_commission,
+    total_gross: completed_gross,
+    total_commission: completed_commission,
+    total_earnings: completed_vendor,
     completed_bookings: completedBookings.length,
     pending_bookings: pendingBookings.length,
     total_bookings: bookings.length,
