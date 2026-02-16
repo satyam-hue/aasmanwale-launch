@@ -121,218 +121,161 @@ const Auth = () => {
           </div>
         </section>
       ) : (
-        <section className="pt-32 pb-20 bg-gradient-to-br from-primary via-sky-light to-accent">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="font-display font-bold text-4xl sm:text-5xl text-primary-foreground mb-6">
-            {isLogin
-              ? "Welcome Back"
-              : signupType
-              ? signupType === "customer"
-                ? "Join as a Customer"
-                : "Become a Vendor"
-              : "Join AasmanWale"}
-          </h1>
-          <p className="text-primary-foreground/80 text-lg max-w-2xl mx-auto">
-            {isLogin
-              ? "Sign in to manage your account"
-              : signupType
-              ? signupType === "customer"
-                ? "Create an account to start booking amazing flights"
-                : "Register your flying service and reach customers"
-              : "Choose how you want to join"}
-          </p>
-        </div>
-      </section>
-
-      <section className="py-20 bg-background">
-        <div className="container mx-auto px-4 max-w-md">
-          <div className="bg-card p-8 rounded-2xl shadow-lg">
-            {isLogin ? (
-              // LOGIN FORM
-              <form onSubmit={handleLoginSubmit} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Email</label>
-                  <Input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="john@example.com"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Password</label>
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                    minLength={6}
-                  />
-                </div>
-                <Button type="submit" variant="hero" size="lg" className="w-full" disabled={loading}>
-                  {loading ? "Signing in..." : "Sign In"}
-                </Button>
-              </form>
-            ) : signupType === null ? (
-              // SIGNUP TYPE SELECTION
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground text-center mb-6">
-                  Select how you'd like to join AasmanWale
-                </p>
-                <Button
-                  onClick={() => setSignupType("customer")}
-                  variant="outline"
-                  size="lg"
-                  className="w-full h-20 flex flex-col gap-2 items-center justify-center"
-                >
-                  <span className="text-lg font-semibold">🪂 Book Flights</span>
-                  <span className="text-xs text-muted-foreground">Sign up as a customer</span>
-                </Button>
-                <Button
-                  onClick={() => setSignupType("vendor")}
-                  variant="outline"
-                  size="lg"
-                  className="w-full h-20 flex flex-col gap-2 items-center justify-center"
-                >
-                  <span className="text-lg font-semibold">✈️ Offer Flights</span>
-                  <span className="text-xs text-muted-foreground">Sign up as a vendor</span>
-                </Button>
-              </div>
-            ) : signupType === "customer" ? (
-              // CUSTOMER SIGNUP
-              <form onSubmit={handleCustomerSignup} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Full Name</label>
-                  <Input
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="John Doe"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Email</label>
-                  <Input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="john@example.com"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Password</label>
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                    minLength={6}
-                  />
-                </div>
-                <Button type="submit" variant="hero" size="lg" className="w-full" disabled={loading}>
-                  {loading ? "Creating..." : "Create Account"}
-                </Button>
-              </form>
-            ) : (
-              // VENDOR SIGNUP
-              <form onSubmit={handleVendorSignup} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Full Name</label>
-                  <Input
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="John Doe"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Email</label>
-                  <Input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="john@example.com"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Company Name</label>
-                  <Input
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    placeholder="Sky Adventures"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Company Phone</label>
-                  <Input
-                    type="tel"
-                    value={companyPhone}
-                    onChange={(e) => setCompanyPhone(e.target.value)}
-                    placeholder="+91 98789 87898"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Location</label>
-                  <Input
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    placeholder="Himachal Pradesh"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Password</label>
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                    minLength={6}
-                  />
-                </div>
-                <Button type="submit" variant="hero" size="lg" className="w-full" disabled={loading}>
-                  {loading ? "Registering..." : "Register as Vendor"}
-                </Button>
-              </form>
-            )}
-
-            <div className="mt-6 text-center">
-              {!signupType && !isLogin ? (
-                <button
-                  onClick={() => setIsLogin(true)}
-                  className="text-primary hover:underline text-sm"
-                >
-                  Already have an account? Sign in
-                </button>
-              ) : (
-                <button
-                  onClick={() => {
-                    setSignupType(null);
-                    setIsLogin(!isLogin);
-                    setEmail("");
-                    setPassword("");
-                    setFullName("");
-                    setCompanyName("");
-                    setCompanyPhone("");
-                    setLocation("");
-                  }}
-                  className="text-primary hover:underline text-sm"
-                >
-                  {isLogin ? "Don't have an account? Sign up" : "Back"}
-                </button>
-              )}
+        <>
+          <section className="pt-32 pb-20 bg-gradient-to-br from-primary via-sky-light to-accent">
+            <div className="container mx-auto px-4 text-center">
+              <h1 className="font-display font-bold text-4xl sm:text-5xl text-primary-foreground mb-4 drop-shadow-md">
+                {isLogin
+                  ? "Welcome Back"
+                  : signupType
+                  ? signupType === "customer"
+                    ? "Join as a Customer"
+                    : "Become a Vendor"
+                  : "Join AasmanWale"}
+              </h1>
+              <p className="text-primary-foreground/80 text-lg max-w-2xl mx-auto">
+                {isLogin
+                  ? "Sign in to manage your account"
+                  : signupType
+                  ? signupType === "customer"
+                    ? "Create an account to start booking amazing flights"
+                    : "Register your flying service and reach customers"
+                  : "Choose how you want to join"}
+              </p>
             </div>
-          </div>
-        </div>
-      </section>
+          </section>
+
+          <section className="py-16 bg-background">
+            <div className="container mx-auto px-4 max-w-md">
+              <div className="bg-card p-8 rounded-2xl shadow-xl border border-border/50">
+                {isLogin ? (
+                  <form onSubmit={handleLoginSubmit} className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">Email</label>
+                      <Input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="john@example.com"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">Password</label>
+                      <Input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        required
+                        minLength={6}
+                      />
+                    </div>
+                    <Button type="submit" variant="hero" size="lg" className="w-full" disabled={loading}>
+                      {loading ? "Signing in..." : "Sign In"}
+                    </Button>
+                  </form>
+                ) : signupType === null ? (
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground text-center mb-6">
+                      Select how you'd like to join AasmanWale
+                    </p>
+                    <Button
+                      onClick={() => setSignupType("customer")}
+                      variant="outline"
+                      size="lg"
+                      className="w-full h-20 flex flex-col gap-1 items-center justify-center hover:border-primary/50 transition-colors"
+                    >
+                      <span className="text-lg font-semibold">🪂 Book Flights</span>
+                      <span className="text-xs text-muted-foreground">Sign up as a customer</span>
+                    </Button>
+                    <Button
+                      onClick={() => setSignupType("vendor")}
+                      variant="outline"
+                      size="lg"
+                      className="w-full h-20 flex flex-col gap-1 items-center justify-center hover:border-primary/50 transition-colors"
+                    >
+                      <span className="text-lg font-semibold">✈️ Offer Flights</span>
+                      <span className="text-xs text-muted-foreground">Sign up as a vendor</span>
+                    </Button>
+                  </div>
+                ) : signupType === "customer" ? (
+                  <form onSubmit={handleCustomerSignup} className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">Full Name</label>
+                      <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="John Doe" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">Email</label>
+                      <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="john@example.com" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">Password</label>
+                      <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
+                    </div>
+                    <Button type="submit" variant="hero" size="lg" className="w-full" disabled={loading}>
+                      {loading ? "Creating..." : "Create Account"}
+                    </Button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleVendorSignup} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">Full Name</label>
+                      <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="John Doe" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">Email</label>
+                      <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="john@example.com" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">Company Name</label>
+                      <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Sky Adventures" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">Company Phone</label>
+                      <Input type="tel" value={companyPhone} onChange={(e) => setCompanyPhone(e.target.value)} placeholder="+91 98789 87898" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">Location</label>
+                      <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Himachal Pradesh" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">Password</label>
+                      <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
+                    </div>
+                    <Button type="submit" variant="hero" size="lg" className="w-full" disabled={loading}>
+                      {loading ? "Registering..." : "Register as Vendor"}
+                    </Button>
+                  </form>
+                )}
+
+                <div className="mt-6 text-center">
+                  {!signupType && !isLogin ? (
+                    <button onClick={() => setIsLogin(true)} className="text-primary hover:underline text-sm">
+                      Already have an account? Sign in
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setSignupType(null);
+                        setIsLogin(!isLogin);
+                        setEmail("");
+                        setPassword("");
+                        setFullName("");
+                        setCompanyName("");
+                        setCompanyPhone("");
+                        setLocation("");
+                      }}
+                      className="text-primary hover:underline text-sm"
+                    >
+                      {isLogin ? "Don't have an account? Sign up" : "Back"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        </>
       )}
     </Layout>
   );

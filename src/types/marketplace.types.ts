@@ -469,26 +469,4 @@ export const RLS_TEST_CASES: RLSTestCase[] = [
   },
 ];
 
-export default {
-  // Export all types
-  BookingStatus,
-  BookingWithStatus,
-  VendorWallet,
-  SettlementTransaction,
-  Payout,
-  Review,
-  VendorRatingSummary,
-  Notification,
-  
-  // Export functions
-  canTransitionBooking,
-  formatCurrency,
-  formatRating,
-  getStatusColor,
-  calculateNetAmount,
-  
-  // Export constants
-  BOOKING_STATUS_FLOW,
-  NOTIFICATION_TYPE_LABELS,
-  PAYOUT_STATUS_LABELS,
-};
+// Types are exported inline above via `export type` and `export const/function`

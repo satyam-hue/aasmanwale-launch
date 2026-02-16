@@ -223,21 +223,7 @@ export async function approveVendor(
 
     if (vendorError) throw vendorError;
 
-    // Create vendor wallet
-    const { error: walletError } = await supabase
-      .from("vendor_wallets")
-      .insert({ vendor_id: vendorId });
-
-    if (walletError && !walletError.message.includes("duplicate")) throw walletError;
-
-    // Create notification
-    await supabase.from("notifications").insert({
-      user_id: userId,
-      notification_type: "vendor_approval",
-      title: "Vendor Approved",
-      message: "Your vendor account has been approved! You can now start creating packages.",
-      related_vendor_id: vendorId,
-    });
+    // TODO: Create vendor wallet and notification when those tables exist
 
     return { success: true };
   } catch (error: any) {
