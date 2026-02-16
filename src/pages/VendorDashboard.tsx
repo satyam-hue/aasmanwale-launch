@@ -52,14 +52,7 @@ interface Booking {
   time_slots: { slot_date: string; start_time: string } | null;
 }
 
-interface VendorEarnings {
-  total_gross: number;
-  commission: number;
-  earnings: number;
-  completed_count: number;
-  pending_count: number;
-  confirmed_count: number;
-}
+type LocalVendorEarnings = Awaited<ReturnType<typeof calculateVendorEarnings>>;
 
 interface SettlementTx {
   id: string;
@@ -87,7 +80,7 @@ const VendorDashboard = () => {
   const [editingPackage, setEditingPackage] = useState<string | null>(null);
 
   // Earnings states
-  const [earnings, setEarnings] = useState<VendorEarnings | null>(null);
+  const [earnings, setEarnings] = useState<LocalVendorEarnings | null>(null);
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [settlements, setSettlements] = useState<SettlementTx[]>([]);
   const [payouts, setPayouts] = useState<Payout[]>([]);
@@ -393,7 +386,7 @@ const VendorDashboard = () => {
                         <TrendingUp className="h-4 w-4 text-secondary" />
                       </div>
                       <p className="font-display font-bold text-2xl text-secondary">{formatCurrency(earnings.total_gross)}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{earnings.completed_count} completed</p>
+                      <p className="text-xs text-muted-foreground mt-1">{earnings.completed_bookings} completed</p>
                     </div>
 
                     <div className="bg-card p-6 rounded-xl shadow-md border border-border">
@@ -401,8 +394,8 @@ const VendorDashboard = () => {
                         <span className="text-sm font-medium text-muted-foreground">Commission Paid</span>
                         <TrendingUp className="h-4 w-4 text-accent" />
                       </div>
-                      <p className="font-display font-bold text-2xl text-accent">{formatCurrency(earnings.commission)}</p>
-                      <p className="text-xs text-muted-foreground mt-1">~{((earnings.commission / earnings.total_gross) * 100).toFixed(1)}% of gross</p>
+                      <p className="font-display font-bold text-2xl text-accent">{formatCurrency(earnings.total_commission)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{earnings.total_gross > 0 ? ((earnings.total_commission / earnings.total_gross) * 100).toFixed(1) : 0}% of gross</p>
                     </div>
 
                     <div className="bg-card p-6 rounded-xl shadow-md border border-border">
@@ -410,8 +403,8 @@ const VendorDashboard = () => {
                         <span className="text-sm font-medium text-muted-foreground">Your Earnings</span>
                         <TrendingUp className="h-4 w-4 text-green-500" />
                       </div>
-                      <p className="font-display font-bold text-2xl text-green-500">{formatCurrency(earnings.earnings)}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{earnings.confirmed_count + earnings.pending_count} active</p>
+                      <p className="font-display font-bold text-2xl text-green-500">{formatCurrency(earnings.total_earnings)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{earnings.pending_bookings} active</p>
                     </div>
                   </div>
 
@@ -421,11 +414,11 @@ const VendorDashboard = () => {
                     <div className="grid sm:grid-cols-3 gap-4">
                       <div>
                         <p className="text-sm text-muted-foreground mb-1">Completed Bookings</p>
-                        <p className="font-display font-bold text-lg text-secondary">{earnings.completed_count}</p>
+                        <p className="font-display font-bold text-lg text-secondary">{earnings.completed_bookings}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground mb-1">Confirmed & Pending</p>
-                        <p className="font-display font-bold text-lg text-accent">{earnings.confirmed_count + earnings.pending_count}</p>
+                        <p className="text-sm text-muted-foreground mb-1">Pending Bookings</p>
+                        <p className="font-display font-bold text-lg text-accent">{earnings.pending_bookings}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground mb-1">Total Amount</p>

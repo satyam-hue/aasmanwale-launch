@@ -35,13 +35,7 @@ interface AdminBooking {
   packages: { name: string } | null;
 }
 
-interface AdminFinancials {
-  total_bookings: number;
-  total_revenue: number;
-  total_commission: number;
-  total_payouts: number;
-  pending_settlement: number;
-}
+type LocalAdminFinancials = Awaited<ReturnType<typeof getAdminFinancials>>;
 
 interface VendorFinancial {
   vendor_id: string;
@@ -71,7 +65,7 @@ const AdminDashboard = () => {
   });
 
   // Financial states
-  const [adminFinancials, setAdminFinancials] = useState<AdminFinancials | null>(null);
+  const [adminFinancials, setAdminFinancials] = useState<LocalAdminFinancials | null>(null);
   const [vendorFinancials, setVendorFinancials] = useState<VendorFinancial[]>([]);
   const [financialsLoading, setFinancialsLoading] = useState(false);
 
@@ -366,8 +360,8 @@ const AdminDashboard = () => {
                         <span className="text-sm font-medium text-muted-foreground">Total Revenue</span>
                         <TrendingUp className="h-4 w-4 text-primary" />
                       </div>
-                      <p className="font-display font-bold text-2xl text-primary">{formatCurrency(adminFinancials.total_revenue)}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{adminFinancials.total_bookings} bookings</p>
+                      <p className="font-display font-bold text-2xl text-primary">{formatCurrency(adminFinancials.total_bookings_amount)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Completed bookings</p>
                     </div>
 
                     <div className="bg-card p-6 rounded-xl shadow-md border border-border">
@@ -375,8 +369,8 @@ const AdminDashboard = () => {
                         <span className="text-sm font-medium text-muted-foreground">Commission Earned</span>
                         <TrendingUp className="h-4 w-4 text-accent" />
                       </div>
-                      <p className="font-display font-bold text-2xl text-accent">{formatCurrency(adminFinancials.total_commission)}</p>
-                      <p className="text-xs text-muted-foreground mt-1">~{((adminFinancials.total_commission / adminFinancials.total_revenue) * 100).toFixed(1)}% of revenue</p>
+                      <p className="font-display font-bold text-2xl text-accent">{formatCurrency(adminFinancials.total_commission_collected)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{adminFinancials.total_bookings_amount > 0 ? ((adminFinancials.total_commission_collected / adminFinancials.total_bookings_amount) * 100).toFixed(1) : 0}% of revenue</p>
                     </div>
 
                     <div className="bg-card p-6 rounded-xl shadow-md border border-border">
@@ -390,10 +384,10 @@ const AdminDashboard = () => {
 
                     <div className="bg-card p-6 rounded-xl shadow-md border border-border">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-muted-foreground">Pending Settlement</span>
-                        <TrendingUp className="h-4 w-4 text-orange-500" />
+                        <span className="text-sm font-medium text-muted-foreground">Pending Payouts</span>
+                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
                       </div>
-                      <p className="font-display font-bold text-2xl text-orange-500">{formatCurrency(adminFinancials.pending_settlement)}</p>
+                      <p className="font-display font-bold text-2xl text-muted-foreground">{formatCurrency(adminFinancials.pending_payouts)}</p>
                       <p className="text-xs text-muted-foreground mt-1">Awaiting payout</p>
                     </div>
                   </div>
