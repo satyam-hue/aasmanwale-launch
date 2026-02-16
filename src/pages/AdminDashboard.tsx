@@ -180,8 +180,10 @@ const AdminDashboard = () => {
     }
   };
 
-  const totalRevenue = bookings.reduce((sum, b) => sum + Number(b.total_amount), 0);
-  const totalCommission = bookings.reduce((sum, b) => sum + Number(b.commission_amount), 0);
+  // Only count completed bookings for revenue/commission stats
+  const completedBookings = bookings.filter(b => b.status === "completed");
+  const totalRevenue = completedBookings.reduce((sum, b) => sum + Number(b.total_amount), 0);
+  const totalCommission = completedBookings.reduce((sum, b) => sum + Number(b.commission_amount), 0);
 
   if (role !== "admin") return <Layout><div className="pt-32 pb-20 text-center"><p>Loading...</p></div></Layout>;
 
@@ -339,7 +341,8 @@ const AdminDashboard = () => {
                         </td>
                       </tr>
                     ))}
-                    {bookings.length === 0 && <tr><td colSpan={7} className="p-3 text-muted-foreground text-center">No bookings yet.</td></tr>}
+            {bookings.length === 0 && <tr><td colSpan={7} className="p-3 text-muted-foreground text-center">No bookings yet.</td></tr>}
+            {bookings.length > 0 && completedBookings.length === 0 && <tr><td colSpan={7} className="p-3 text-muted-foreground text-center">Bookings exist but none are completed yet.</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -420,7 +423,9 @@ const AdminDashboard = () => {
                   )}
                 </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">No financial data available.</div>
+              <div className="text-center py-8 text-muted-foreground">
+                {bookings.length === 0 ? "No bookings yet." : "No completed bookings — earnings will appear once bookings are marked as completed."}
+              </div>
               )}
             </TabsContent>
             <TabsContent value="settings">

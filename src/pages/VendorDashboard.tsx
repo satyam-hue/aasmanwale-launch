@@ -69,7 +69,7 @@ interface Payout {
 }
 
 const VendorDashboard = () => {
-  const { user, vendorId } = useAuth();
+  const { user, vendorId, role } = useAuth();
   const navigate = useNavigate();
   const [vendor, setVendor] = useState<any>(null);
   const [packages, setPackages] = useState<VendorPackage[]>([]);
@@ -95,11 +95,15 @@ const VendorDashboard = () => {
     slot_date: "", start_time: "08:00", end_time: "09:00", capacity: 1,
   });
 
+  
+
   useEffect(() => {
     if (!user) { navigate("/auth"); return; }
+    // Role guard: only vendors can access this page
+    if (role && role !== "vendor") { navigate("/"); return; }
     if (!vendorId) { navigate("/vendor/register"); return; }
     fetchData();
-  }, [user, vendorId]);
+  }, [user, role, vendorId]);
 
   const fetchData = async () => {
     if (!vendorId) return;
@@ -484,7 +488,9 @@ const VendorDashboard = () => {
                   )}
                 </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">No earnings data available yet.</div>
+              <div className="text-center py-8 text-muted-foreground">
+                {bookings.length === 0 ? "No bookings yet." : "No completed bookings yet — earnings appear after bookings are completed."}
+              </div>
               )}
             </TabsContent>
             <TabsContent value="bookings">
