@@ -50,7 +50,7 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
 
-async def require_role(required_roles: list[UserRole]):
+def require_role(required_roles: list[UserRole]):
     """Dependency to require specific user roles"""
     async def role_checker(current_user: dict = Depends(get_current_user)):
         user_role = current_user.get('role')
