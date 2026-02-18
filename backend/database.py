@@ -50,7 +50,8 @@ COLLECTIONS = {
 
 async def create_indexes():
     """Create database indexes for performance"""
-    if not db:
+    global db
+    if db is None:
         return
     
     # Users indexes
