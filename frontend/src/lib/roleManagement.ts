@@ -37,13 +37,7 @@ export async function signupCustomer(
 
     const userId = authData.user.id;
 
-    // Assign customer role (trigger in database will create profile)
-    const { error: roleError } = await supabase.from("user_roles").insert({
-      user_id: userId,
-      role: "customer",
-    });
-
-    if (roleError) throw roleError;
+    // Role is automatically assigned by handle_new_user trigger (customer by default)
 
     return { success: true, userId };
   } catch (error: any) {
