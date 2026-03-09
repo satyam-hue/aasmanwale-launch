@@ -318,6 +318,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_vendor_role: { Args: never; Returns: undefined }
       get_vendor_id_for_user: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {

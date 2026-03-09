@@ -37,13 +37,7 @@ export async function signupCustomer(
 
     const userId = authData.user.id;
 
-    // Assign customer role (trigger in database will create profile)
-    const { error: roleError } = await supabase.from("user_roles").insert({
-      user_id: userId,
-      role: "customer",
-    });
-
-    if (roleError) throw roleError;
+    // Role is automatically assigned by handle_new_user trigger (customer by default)
 
     return { success: true, userId };
   } catch (error: any) {
@@ -81,12 +75,8 @@ export async function signupVendor(
 
     const userId = authData.user.id;
 
-    // Assign vendor role (customer by default, then mark as vendor_pending)
-    const { error: roleError } = await supabase.from("user_roles").insert({
-      user_id: userId,
-      role: "vendor",
-    });
-
+    // Assign vendor role using secure DB function (bypasses RLS safely)
+    const { error: roleError } = await supabase.rpc("assign_vendor_role");
     if (roleError) throw roleError;
 
     // Create vendor profile (is_approved = false initially)
