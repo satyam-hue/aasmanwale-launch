@@ -60,12 +60,19 @@ export async function signupVendor(
   location: string
 ): Promise<{ success: boolean; userId?: string; error?: string }> {
   try {
-    // Create auth user
+    // Create auth user with vendor metadata
+    // The handle_new_user trigger will assign vendor role and create vendor profile
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName },
+        data: {
+          full_name: fullName,
+          signup_role: "vendor",
+          company_name: companyName,
+          company_phone: companyPhone,
+          location,
+        },
         emailRedirectTo: window.location.origin,
       },
     });
@@ -73,25 +80,7 @@ export async function signupVendor(
     if (authError) throw authError;
     if (!authData.user) throw new Error("User creation failed");
 
-    const userId = authData.user.id;
-
-    // Assign vendor role using secure DB function (bypasses RLS safely)
-    const { error: roleError } = await supabase.rpc("assign_vendor_role");
-    if (roleError) throw roleError;
-
-    // Create vendor profile (is_approved = false initially)
-    const { error: vendorError } = await supabase.from("vendors").insert({
-      user_id: userId,
-      company_name: companyName,
-      contact_email: email,
-      contact_phone: companyPhone,
-      location,
-      is_approved: false, // Requires admin approval
-    });
-
-    if (vendorError) throw vendorError;
-
-    return { success: true, userId };
+    return { success: true, userId: authData.user.id };
   } catch (error: any) {
     console.error("Vendor signup error:", error);
     return { success: false, error: error.message };
